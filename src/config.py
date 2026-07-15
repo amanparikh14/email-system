@@ -15,6 +15,7 @@ class Config:
 
     # Generation
     gen_model: str = os.getenv("GEN_MODEL", "gpt-5.6-terra")
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     gen_chain: tuple = ("openai", "gemini")
 
     # Judge -- pinned, single-sourced, never falls over (NFR-2, NFR-3)

@@ -63,6 +63,35 @@ def _parse_judge_json(text: str) -> dict:
     return data
 
 
+_JUDGE_OUTPUT_CONFIG = {"format": {"type": "json_schema", "schema": _JUDGE_OUTPUT_SCHEMA}}
+
+
+def _build_record(
+    parsed: dict,
+    generated_reply: str,
+    reference_reply: str,
+    id_: str,
+    category: str,
+    gen_provider_used: str,
+    gen_fallback_used: bool,
+) -> PerResponseRecord:
+    dimension_scores = {dim: parsed[dim] for dim in _DIMENSIONS}
+    score_overall = _weighted_score(dimension_scores)
+    similarity = _reply_similarity(generated_reply, reference_reply)
+
+    return PerResponseRecord(
+        id=id_,
+        category=category,
+        score_overall=score_overall,
+        dimension_scores=dimension_scores,
+        similarity=similarity,
+        judge_reason=parsed.get("reason", ""),
+        judge_model=CONFIG.judge_model,
+        provider_used=gen_provider_used,
+        fallback_used=gen_fallback_used,
+    )
+
+
 def judge(
     email: str,
     generated_reply: str,
@@ -87,11 +116,7 @@ def judge(
     last_error: Exception | None = None
     parsed: dict | None = None
     for attempt in range(2):  # JSON-parse failures retry as their own class (NFR-5)
-        raw = provider.complete(
-            JUDGE_SYSTEM,
-            prompt,
-            output_config={"format": {"type": "json_schema", "schema": _JUDGE_OUTPUT_SCHEMA}},
-        )
+        raw = provider.complete(JUDGE_SYSTEM, prompt, output_config=_JUDGE_OUTPUT_CONFIG)
         try:
             parsed = _parse_judge_json(raw)
             break
@@ -101,18 +126,39 @@ def judge(
     if parsed is None:
         raise RuntimeError(f"judge returned unparseable output after retries: {last_error}")
 
-    dimension_scores = {dim: parsed[dim] for dim in _DIMENSIONS}
-    score_overall = _weighted_score(dimension_scores)
-    similarity = _reply_similarity(generated_reply, reference_reply)
+    return _build_record(
+        parsed, generated_reply, reference_reply, id_, category, gen_provider_used, gen_fallback_used
+    )
 
-    return PerResponseRecord(
-        id=id_,
-        category=category,
-        score_overall=score_overall,
-        dimension_scores=dimension_scores,
-        similarity=similarity,
-        judge_reason=parsed.get("reason", ""),
-        judge_model=CONFIG.judge_model,
-        provider_used=gen_provider_used,
-        fallback_used=gen_fallback_used,
+
+async def ajudge(
+    email: str,
+    generated_reply: str,
+    reference_reply: str,
+    provider: AnthropicProvider,
+    *,
+    id_: str = "",
+    category: str = "",
+    gen_provider_used: str = "",
+    gen_fallback_used: bool = False,
+) -> PerResponseRecord:
+    """Async counterpart of judge(), used by the FastAPI /evaluate endpoint (FR-13).
+    Same pinned-judge, no-fallback contract as judge() (NFR-2/NFR-3)."""
+    prompt = build_judge_prompt(email, generated_reply, reference_reply)
+
+    last_error: Exception | None = None
+    parsed: dict | None = None
+    for attempt in range(2):
+        raw = await provider.acomplete(JUDGE_SYSTEM, prompt, output_config=_JUDGE_OUTPUT_CONFIG)
+        try:
+            parsed = _parse_judge_json(raw)
+            break
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            logger.warning(f"judge JSON parse failed on attempt {attempt + 1}: {exc}")
+            last_error = exc
+    if parsed is None:
+        raise RuntimeError(f"judge returned unparseable output after retries: {last_error}")
+
+    return _build_record(
+        parsed, generated_reply, reference_reply, id_, category, gen_provider_used, gen_fallback_used
     )

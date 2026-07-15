@@ -1,7 +1,10 @@
+from __future__ import annotations
+
 import os
 
 import openai
 
+from src.config import CONFIG
 from src.llm.openai import OpenAIProvider
 
 # STUB, not exercised live in this submission. Gemini exposes an
@@ -13,8 +16,8 @@ _GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
 class GeminiProvider(OpenAIProvider):
     name = "gemini"
 
-    def __init__(self, model: str = "gemini-2.5-flash") -> None:
-        self.model = model
+    def __init__(self, model: str | None = None) -> None:
+        self.model = model or CONFIG.gemini_model
         api_key = os.getenv("GEMINI_API_KEY", "")
         self._client = openai.OpenAI(api_key=api_key, base_url=_GEMINI_BASE_URL)
         self._async_client = openai.AsyncOpenAI(api_key=api_key, base_url=_GEMINI_BASE_URL)

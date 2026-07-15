@@ -74,7 +74,7 @@ def _synthesize_rows(n: int, generator, start_idx: int) -> list[Row]:
     """Only invoked if the corpus is thinner than MIN_ROWS_BEFORE_SYNTH."""
     rows = []
     for i in range(n):
-        text = generator.complete(
+        text, _provider_used = generator.complete(
             SYNTH_SYSTEM,
             "Write one new customer support email + reply, distinct from any previous one.",
         )
@@ -94,7 +94,8 @@ def _synthesize_rows(n: int, generator, start_idx: int) -> list[Row]:
 
 
 def _reword_email(email: str, generator) -> str:
-    return generator.complete(REWORD_SYSTEM, email).strip()
+    text, _provider_used = generator.complete(REWORD_SYSTEM, email)
+    return text.strip()
 
 
 def split_indices(n_rows: int, store_size: int, test_size: int, seed: int) -> tuple[list[int], list[int]]:
