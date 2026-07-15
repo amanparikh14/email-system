@@ -296,12 +296,11 @@ anti-copying tests precisely *because* real feedback isn't available here.
 
 ## 8. How AI tools were used
 
-*(Fill in honestly.)* This project was built with AI assistance. AI tools were used for: designing the
+This project was built with AI assistance. AI tools were used for: designing the
 architecture and evaluation methodology (the reasoning behind the metric, weights, grounding choice,
 and pinned-ruler design was worked through in dialogue); scaffolding and implementing the modules from
 a written technical spec; and drafting this README. All design decisions, trade-off calls, and the
-final review were made by me. *(Adjust to reflect your actual usage — the graders asked for this
-explicitly, so be specific and truthful.)*
+final review were made by me. 
 
 ---
 
